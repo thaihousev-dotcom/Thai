@@ -1,334 +1,122 @@
 <!doctype html>
 <html lang="ru">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>PDF Drinks</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>PDF Viewer</title>
 
-  <!-- PDF.js (CDN) -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.js"></script>
 
-  <style>
-    :root{
-      --bg:#0b0f17;
-      --panel:rgba(255,255,255,.06);
-      --stroke:rgba(255,255,255,.10);
-      --text:rgba(255,255,255,.92);
-      --muted:rgba(255,255,255,.70);
-      --radius:16px;
-    }
-    *{ box-sizing:border-box; }
-    html,body{ height:100%; }
-    body{
-      margin:0;
-      background: radial-gradient(900px 500px at 30% 10%, rgba(69,104,220,.25), transparent 60%),
-                  radial-gradient(700px 400px at 80% 0%, rgba(176,62,255,.18), transparent 55%),
-                  var(--bg);
-      color:var(--text);
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-    }
-
-    .app{
-      min-height:100%;
-      display:grid;
-      grid-template-rows:auto 1fr auto;
-      gap:14px;
-      padding:14px;
-    }
-
-    header{
-      display:grid;
-      grid-template-columns:1fr auto auto;
-      gap:12px;
-      align-items:center;
-      padding:12px;
-      border:1px solid var(--stroke);
-      background:var(--panel);
-      border-radius:var(--radius);
-      backdrop-filter: blur(10px);
-    }
-
-    .brand{ font-weight:700; letter-spacing:.3px; }
-
-    .file-btn{
-      cursor:pointer;
-      display:inline-flex;
-      align-items:center;
-      gap:10px;
-      padding:10px 12px;
-      border-radius:12px;
-      border:1px solid var(--stroke);
-      background:rgba(255,255,255,.08);
-      user-select:none;
-      white-space:nowrap;
-    }
-    .file-btn input{ display:none; }
-    .file-btn:hover{ background:rgba(255,255,255,.12); }
-
-    .controls{
-      display:inline-flex;
-      align-items:center;
-      gap:10px;
-      padding:8px;
-      border-radius:12px;
-      border:1px solid var(--stroke);
-      background:rgba(0,0,0,.18);
-    }
-
-    button{
-      width:42px;
-      height:38px;
-      border-radius:10px;
-      border:1px solid var(--stroke);
-      background:rgba(255,255,255,.09);
-      color:var(--text);
-      cursor:pointer;
-      transition:transform .12s ease, background .12s ease, opacity .12s ease;
-    }
-    button:hover{ background:rgba(255,255,255,.14); transform:translateY(-1px); }
-    button:disabled{ opacity:.45; cursor:not-allowed; transform:none; }
-
-    .page{ color:var(--muted); font-variant-numeric: tabular-nums; }
-
-    main{
-      border:1px solid var(--stroke);
-      background:rgba(255,255,255,.04);
-      border-radius:var(--radius);
-      overflow:hidden;
-      display:grid;
-    }
-
-    .wrap{
-      position:relative;
-      display:grid;
-      place-items:center;
-      padding:12px;
-      height:calc(100vh - 160px);
-    }
-
-    canvas{
-      max-width:100%;
-      max-height:100%;
-      border-radius:12px;
-      background:rgba(255,255,255,.03);
-      box-shadow:0 20px 50px rgba(0,0,0,.35);
-
-      /* анимация появления страницы */
-      opacity:0;
-      transform:translateY(10px) scale(.99);
-      transition:opacity .22s ease, transform .22s ease;
-    }
-    canvas.is-visible{
-      opacity:1;
-      transform:translateY(0) scale(1);
-    }
-
-    .hint{
-      position:absolute;
-      bottom:14px;
-      padding:10px 12px;
-      border-radius:12px;
-      border:1px solid var(--stroke);
-      background:rgba(0,0,0,.28);
-      color:var(--muted);
-      text-align:center;
-      max-width:min(520px, 92vw);
-    }
-
-    footer{
-      padding:10px 12px;
-      border:1px solid var(--stroke);
-      background:rgba(255,255,255,.04);
-      border-radius:var(--radius);
-      color:var(--muted);
-    }
-
-    /* ====== Адаптив: планшет/телефон ====== */
-    @media (max-width: 820px){
-      header{
-        grid-template-columns:1fr auto;
-        grid-template-areas:
-          "brand file"
-          "controls controls";
-      }
-      .brand{ grid-area: brand; }
-      .file-btn{ grid-area:file; justify-self:end; }
-      .controls{ grid-area:controls; justify-self:start; width:fit-content; }
-      .wrap{ height:calc(100vh - 210px); }
-    }
-
-    @media (max-width: 420px){
-      .controls{ width:100%; justify-content:space-between; }
-      button{ width:44px; }
-    }
-  </style>
+<style>
+body{
+  margin:0;
+  background:#0b0f17;
+  color:#fff;
+  font-family:system-ui;
+  display:flex;
+  flex-direction:column;
+  height:100vh;
+}
+header{
+  display:flex;
+  justify-content:center;
+  gap:20px;
+  padding:15px;
+}
+button{
+  width:50px;
+  height:40px;
+  font-size:18px;
+  cursor:pointer;
+}
+.wrap{
+  flex:1;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+}
+canvas{
+  max-width:95%;
+  max-height:95%;
+  transition:opacity .25s ease, transform .25s ease;
+  opacity:0;
+  transform:translateY(10px);
+}
+canvas.show{
+  opacity:1;
+  transform:translateY(0);
+}
+</style>
 </head>
 
 <body>
-  <div class="app">
-    <header>
-      <div class="brand">PDF Viewer</div>
 
-      <label class="file-btn">
-        <input id="fileInput" type="file" accept="application/pdf" />
-        <span>Загрузить PDF</span>
-      </label>
+<header>
+  <button id="prev">←</button>
+  <div><span id="pageNum">1</span> / <span id="pageCount">1</span></div>
+  <button id="next">→</button>
+</header>
 
-      <div class="controls">
-        <button id="prevBtn" disabled>←</button>
-        <div class="page"><span id="pageNum">0</span> / <span id="pageCount">0</span></div>
-        <button id="nextBtn" disabled>→</button>
-      </div>
-    </header>
+<div class="wrap">
+  <canvas id="canvas"></canvas>
+</div>
 
-    <main>
-      <div class="wrap">
-        <canvas id="pdfCanvas"></canvas>
-        <div id="hint" class="hint">Выбери PDF-файл, чтобы начать</div>
-      </div>
-    </main>
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+"https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.js";
 
-    <footer>
-      <small>Мобильный / планшет / десктоп • PDF.js • 1 файл</small>
-    </footer>
-  </div>
+/* ======== ПУТЬ К PDF ======== */
+const PDF_PATH = "./dhuihiuawygilrfhiresod.pdf";
+/* ============================= */
 
-  <script>
-    // PDF.js worker
-    pdfjsLib.GlobalWorkerOptions.workerSrc =
-      "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.js";
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+const prevBtn = document.getElementById("prev");
+const nextBtn = document.getElementById("next");
+const pageNum = document.getElementById("pageNum");
+const pageCount = document.getElementById("pageCount");
 
-    const fileInput = document.getElementById("fileInput");
-    const prevBtn = document.getElementById("prevBtn");
-    const nextBtn = document.getElementById("nextBtn");
-    const pageNumEl = document.getElementById("pageNum");
-    const pageCountEl = document.getElementById("pageCount");
-    const canvas = document.getElementById("pdfCanvas");
-    const hint = document.getElementById("hint");
-    const ctx = canvas.getContext("2d");
+let pdfDoc = null;
+let currentPage = 1;
 
-    let pdfDoc = null;
-    let currentPage = 1;
-    let isRendering = false;
-    let pendingPage = null;
+async function loadPdf(){
+  pdfDoc = await pdfjsLib.getDocument(PDF_PATH).promise;
+  pageCount.textContent = pdfDoc.numPages;
+  renderPage(currentPage);
+}
 
-    function setButtons(){
-      const hasPdf = !!pdfDoc;
-      prevBtn.disabled = !hasPdf || currentPage <= 1 || isRendering;
-      nextBtn.disabled = !hasPdf || currentPage >= (pdfDoc?.numPages || 1) || isRendering;
-    }
+async function renderPage(num){
+  const page = await pdfDoc.getPage(num);
+  const viewport = page.getViewport({ scale: 1.5 });
 
-    function setPageUI(){
-      pageNumEl.textContent = pdfDoc ? String(currentPage) : "0";
-      pageCountEl.textContent = pdfDoc ? String(pdfDoc.numPages) : "0";
-    }
+  canvas.width = viewport.width;
+  canvas.height = viewport.height;
 
-    function getScale(viewport){
-      const wrap = canvas.parentElement;
-      const padding = 24;
-      const maxW = wrap.clientWidth - padding;
-      const maxH = wrap.clientHeight - padding;
+  await page.render({
+    canvasContext: ctx,
+    viewport: viewport
+  }).promise;
 
-      const scaleW = maxW / viewport.width;
-      const scaleH = maxH / viewport.height;
+  pageNum.textContent = num;
 
-      const base = Math.min(scaleW, scaleH);
-      return Math.max(0.6, Math.min(base, 2.2));
-    }
+  canvas.classList.remove("show");
+  requestAnimationFrame(()=> canvas.classList.add("show"));
+}
 
-    async function renderPage(num){
-      if(!pdfDoc) return;
+prevBtn.onclick = () => {
+  if(currentPage <= 1) return;
+  currentPage--;
+  renderPage(currentPage);
+}
 
-      if(isRendering){
-        pendingPage = num;
-        return;
-      }
-      isRendering = true;
-      pendingPage = null;
+nextBtn.onclick = () => {
+  if(currentPage >= pdfDoc.numPages) return;
+  currentPage++;
+  renderPage(currentPage);
+}
 
-      setButtons();
-      canvas.classList.remove("is-visible");
+loadPdf();
+</script>
 
-      const page = await pdfDoc.getPage(num);
-      const viewport0 = page.getViewport({ scale: 1 });
-      const scale = getScale(viewport0);
-      const viewport = page.getViewport({ scale });
-
-      const dpr = window.devicePixelRatio || 1;
-      canvas.width = Math.floor(viewport.width * dpr);
-      canvas.height = Math.floor(viewport.height * dpr);
-      canvas.style.width = `${Math.floor(viewport.width)}px`;
-      canvas.style.height = `${Math.floor(viewport.height)}px`;
-
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      try{
-        await page.render({ canvasContext: ctx, viewport }).promise;
-      }catch(err){
-        console.error(err);
-        alert("Ошибка рендера страницы PDF.");
-      }finally{
-        requestAnimationFrame(() => canvas.classList.add("is-visible"));
-        isRendering = false;
-        setPageUI();
-        setButtons();
-
-        if(pendingPage !== null){
-          const next = pendingPage;
-          pendingPage = null;
-          renderPage(next);
-        }
-      }
-    }
-
-    async function loadPdfFromFile(file){
-      const buf = await file.arrayBuffer();
-      pdfDoc = await pdfjsLib.getDocument({ data: buf }).promise;
-
-      currentPage = 1;
-      hint.style.display = "none";
-
-      setPageUI();
-      setButtons();
-      await renderPage(currentPage);
-    }
-
-    fileInput.addEventListener("change", async (e) => {
-      const file = e.target.files?.[0];
-      if(!file) return;
-
-      if(file.type !== "application/pdf"){
-        alert("Пожалуйста, выбери PDF файл.");
-        return;
-      }
-
-      try{
-        await loadPdfFromFile(file);
-      }catch(err){
-        console.error(err);
-        alert("Не удалось открыть PDF. Попробуй другой файл.");
-      }
-    });
-
-    prevBtn.addEventListener("click", () => {
-      if(!pdfDoc || currentPage <= 1) return;
-      currentPage -= 1;
-      renderPage(currentPage);
-    });
-
-    nextBtn.addEventListener("click", () => {
-      if(!pdfDoc || currentPage >= pdfDoc.numPages) return;
-      currentPage += 1;
-      renderPage(currentPage);
-    });
-
-    // Перерисовка при смене ориентации/размера окна
-    window.addEventListener("resize", () => {
-      if(!pdfDoc) return;
-      clearTimeout(window.__pdf_resize_t);
-      window.__pdf_resize_t = setTimeout(() => renderPage(currentPage), 150);
-    });
-  </script>
 </body>
 </html>
