@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>PDF Viewer</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.js"></script>
+
+<style>
+body{
+  margin:0;
+  background:#0b0f17;
+  color:#fff;
+  font-family:system-ui;
+  display:flex;
+  flex-direction:column;
+  height:100vh;
+}
+header{
+  display:flex;
+  justify-content:center;
+  gap:20px;
+  padding:15px;
+}
+button{
+  width:50px;
+  height:40px;
+  font-size:18px;
+  cursor:pointer;
+}
+.wrap{
+  flex:1;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+}
+canvas{
+  max-width:95%;
+  max-height:95%;
+  transition:opacity .25s ease, transform .25s ease;
+  opacity:0;
+  transform:translateY(10px);
+}
+canvas.show{
+  opacity:1;
+  transform:translateY(0);
+}
+</style>
+</head>
+
+<body>
+
+<header>
+  <button id="prev">←</button>
+  <div><span id="pageNum">1</span> / <span id="pageCount">1</span></div>
+  <button id="next">→</button>
+</header>
+
+<div class="wrap">
+  <canvas id="canvas"></canvas>
+</div>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+"https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.js";
+
+/* ======== ПУТЬ К PDF ======== */
+const PDF_PATH = "./dhuihiuawygilrfhiresod.pdf";
+/* ============================= */
+
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+const prevBtn = document.getElementById("prev");
+const nextBtn = document.getElementById("next");
+const pageNum = document.getElementById("pageNum");
+const pageCount = document.getElementById("pageCount");
+
+let pdfDoc = null;
+let currentPage = 1;
+
+async function loadPdf(){
+  pdfDoc = await pdfjsLib.getDocument(PDF_PATH).promise;
+  pageCount.textContent = pdfDoc.numPages;
+  renderPage(currentPage);
+}
+
+async function renderPage(num){
+  const page = await pdfDoc.getPage(num);
+  const viewport = page.getViewport({ scale: 1.5 });
+
+  canvas.width = viewport.width;
+  canvas.height = viewport.height;
+
+  await page.render({
+    canvasContext: ctx,
+    viewport: viewport
+  }).promise;
+
+  pageNum.textContent = num;
+
+  canvas.classList.remove("show");
+  requestAnimationFrame(()=> canvas.classList.add("show"));
+}
+
+prevBtn.onclick = () => {
+  if(currentPage <= 1) return;
+  currentPage--;
+  renderPage(currentPage);
+}
+
+nextBtn.onclick = () => {
+  if(currentPage >= pdfDoc.numPages) return;
+  currentPage++;
+  renderPage(currentPage);
+}
+
+loadPdf();
+</script>
+
+</body>
+</html>
