@@ -1,114 +1,114 @@
 <!doctype html>
-<html lang="ru">
+<html lang="en">
 <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>PDF Viewer - All Pages</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>PDF Viewer - All Pages</title>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 
-    <style>
-        body {
-            margin: 0;
-            background: #0b0f17;
-            color: #fff;
-            font-family: system-ui, -apple-system, sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 20px 0;
-        }
+  <style>
+    body {
+      margin: 0;
+      background: #0b0f17;
+      color: #fff;
+      font-family: system-ui, -apple-system, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px 0;
+    }
 
-        #pdf-container {
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-            width: 100%;
-            max-width: 1000px;
-            align-items: center;
-        }
+    #pdf-container {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      width: 100%;
+      max-width: 1000px;
+      align-items: center;
+    }
 
-        canvas {
-            max-width: 95%;
-            height: auto !important;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.6);
-            background: white;
-        }
+    canvas {
+      max-width: 95%;
+      height: auto !important;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+      background: white;
+    }
 
-        .loading-info {
-            position: fixed;
-            top: 10px;
-            background: rgba(0,0,0,0.7);
-            padding: 5px 15px;
-            border-radius: 20px;
-            font-size: 14px;
-        }
-    </style>
+    .loading-info {
+      position: fixed;
+      top: 10px;
+      background: rgba(0,0,0,0.7);
+      padding: 5px 15px;
+      border-radius: 20px;
+      font-size: 14px;
+    }
+  </style>
 </head>
 
 <body>
 
-<div id="status" class="loading-info">Загрузка PDF...</div>
-<div id="pdf-container"></div>
+  <div id="status" class="loading-info">Loading PDF...</div>
+  <div id="pdf-container"></div>
 
-<script>
-    // Указываем путь к воркеру (версии должны совпадать!)
-    const pdfjsLib = window['pdfjs-dist/build/pdf'];
-    pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+  <script>
+    // Set the worker path (versions must match!)
+    const pdfjsLib = window["pdfjs-dist/build/pdf"];
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
 
-    /* ======== ПУТЬ К PDF ======== */
-    // Убедитесь, что файл в репозитории называется именно так!
-    const PDF_PATH = "dhuihiuawygilrfhiresod.pdf"; 
-    /* ============================= */
+    /* ======== PDF PATH ======== */
+    // Make sure the file in your repo is named exactly like this!
+    const PDF_PATH = "DRINKS.pdf";
+    /* ========================= */
 
     const container = document.getElementById("pdf-container");
-    const statusIdx = document.getElementById("status");
+    const statusEl = document.getElementById("status");
 
     async function loadFullPdf() {
-        try {
-            const loadingTask = pdfjsLib.getDocument(PDF_PATH);
-            const pdfDoc = await loadingTask.promise;
-            const numPages = pdfDoc.numPages;
-            
-            statusIdx.textContent = `Всего страниц: ${numPages}`;
+      try {
+        const loadingTask = pdfjsLib.getDocument(PDF_PATH);
+        const pdfDoc = await loadingTask.promise;
+        const numPages = pdfDoc.numPages;
 
-            // Отрисовываем все страницы по очереди
-            for (let i = 1; i <= numPages; i++) {
-                await renderPage(pdfDoc, i);
-            }
-            
-            // Скрываем статус через пару секунд после загрузки
-            setTimeout(() => statusIdx.style.display = 'none', 3000);
+        statusEl.textContent = `Total pages: ${numPages}`;
 
-        } catch (error) {
-            console.error("Ошибка:", error);
-            statusIdx.style.background = "red";
-            statusIdx.textContent = "Ошибка загрузки: " + error.message;
+        // Render all pages sequentially
+        for (let i = 1; i <= numPages; i++) {
+          await renderPage(pdfDoc, i);
         }
+
+        // Hide status a couple seconds after loading
+        setTimeout(() => (statusEl.style.display = "none"), 3000);
+      } catch (error) {
+        console.error("Error:", error);
+        statusEl.style.background = "red";
+        statusEl.textContent = "Load error: " + error.message;
+      }
     }
 
     async function renderPage(pdfDoc, num) {
-        const page = await pdfDoc.getPage(num);
-        
-        // Масштаб 1.5 дает хорошее качество. Если тормозит — поставьте 1.0
-        const viewport = page.getViewport({ scale: 1.5 });
-        
-        const canvas = document.createElement("canvas");
-        const ctx = canvas.getContext("2d");
-        
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
-        
-        container.appendChild(canvas);
+      const page = await pdfDoc.getPage(num);
 
-        await page.render({
-            canvasContext: ctx,
-            viewport: viewport
-        }).promise;
+      // Scale 1.5 gives good quality. If it lags, set to 1.0
+      const viewport = page.getViewport({ scale: 1.5 });
+
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+
+      container.appendChild(canvas);
+
+      await page.render({
+        canvasContext: ctx,
+        viewport: viewport,
+      }).promise;
     }
 
     loadFullPdf();
-</script>
+  </script>
 
 </body>
 </html>
