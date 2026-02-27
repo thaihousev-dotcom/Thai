@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>PDF Viewer - All Pages</title>
+  <title>PDF Viewer - Drinks / Kitchen</title>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 
@@ -19,13 +19,63 @@
       padding: 20px 0;
     }
 
-    #pdf-container {
+    .topbar {
+      width: 100%;
+      max-width: 1000px;
       display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 0 10px;
+      box-sizing: border-box;
+      margin-bottom: 14px;
+    }
+
+    .tabs {
+      display: inline-flex;
+      gap: 8px;
+      background: rgba(255,255,255,0.06);
+      padding: 6px;
+      border-radius: 14px;
+    }
+
+    .tab-btn {
+      border: 0;
+      cursor: pointer;
+      color: #fff;
+      background: transparent;
+      padding: 8px 12px;
+      border-radius: 10px;
+      font-size: 14px;
+      opacity: 0.8;
+    }
+
+    .tab-btn.active {
+      background: rgba(255,255,255,0.12);
+      opacity: 1;
+    }
+
+    #status {
+      font-size: 14px;
+      opacity: 0.85;
+      white-space: nowrap;
+    }
+
+    .viewer {
+      width: 100%;
+      max-width: 1000px;
+    }
+
+    .pdf-container {
+      display: none; /* only one is shown */
       flex-direction: column;
       gap: 20px;
       width: 100%;
-      max-width: 1000px;
       align-items: center;
+    }
+
+    .pdf-container.active {
+      display: flex;
     }
 
     canvas {
@@ -33,81 +83,159 @@
       height: auto !important;
       box-shadow: 0 4px 20px rgba(0,0,0,0.6);
       background: white;
-    }
-
-    .loading-info {
-      position: fixed;
-      top: 10px;
-      background: rgba(0,0,0,0.7);
-      padding: 5px 15px;
-      border-radius: 20px;
-      font-size: 14px;
+      border-radius: 6px;
     }
   </style>
 </head>
 
 <body>
 
-  <div id="status" class="loading-info">Loading PDF...</div>
-  <div id="pdf-container"></div>
+  <div class="topbar">
+    <div class="tabs" role="tablist" aria-label="Menu PDFs">
+      <button id="tab-drinks" class="tab-btn active" role="tab" aria-selected="true">
+        Drinks
+      </button>
+      <button id="tab-kitchen" class="tab-btn" role="tab" aria-selected="false">
+        Kitchen
+      </button>
+    </div>
+
+    <div id="status">Loading…</div>
+  </div>
+
+  <div class="viewer">
+    <div id="pdf-drinks" class="pdf-container active"></div>
+    <div id="pdf-kitchen" class="pdf-container"></div>
+  </div>
 
   <script>
-    // Set the worker path (versions must match!)
+    // PDF.js
     const pdfjsLib = window["pdfjs-dist/build/pdf"];
     pdfjsLib.GlobalWorkerOptions.workerSrc =
       "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
 
-    /* ======== PDF PATH ======== */
-    // Make sure the file in your repo is named exactly like this!
-    const PDF_PATH = "DRINKS.pdf";
-    /* ========================= */
+    /* ======== PDF PATHS ======== */
+    const PDFS = {
+      drinks: "DRINKS.pdf",
+      kitchen: "KITCHEN.pdf",
+    };
+    /* =========================== */
 
-    const container = document.getElementById("pdf-container");
     const statusEl = document.getElementById("status");
 
-    async function loadFullPdf() {
-      try {
-        const loadingTask = pdfjsLib.getDocument(PDF_PATH);
-        const pdfDoc = await loadingTask.promise;
-        const numPages = pdfDoc.numPages;
+    const containers = {
+      drinks: document.getElementById("pdf-drinks"),
+      kitchen: document.getElementById("pdf-kitchen"),
+    };
 
-        statusEl.textContent = `Total pages: ${numPages}`;
+    const tabs = {
+      drinks: document.getElementById("tab-drinks"),
+      kitchen: document.getElementById("tab-kitchen"),
+    };
 
-        // Render all pages sequentially
-        for (let i = 1; i <= numPages; i++) {
-          await renderPage(pdfDoc, i);
-        }
+    // Cache loaded PDFs so switching is instant
+    const pdfCache = new Map(); // key -> pdfDoc
+    let activeKey = "drinks";
+    let renderToken = 0; // cancellation token
 
-        // Hide status a couple seconds after loading
-        setTimeout(() => (statusEl.style.display = "none"), 3000);
-      } catch (error) {
-        console.error("Error:", error);
-        statusEl.style.background = "red";
-        statusEl.textContent = "Load error: " + error.message;
+    function setStatus(text) {
+      statusEl.textContent = text;
+    }
+
+    function setActiveTab(key) {
+      activeKey = key;
+
+      // buttons
+      for (const k of Object.keys(tabs)) {
+        const isActive = k === key;
+        tabs[k].classList.toggle("active", isActive);
+        tabs[k].setAttribute("aria-selected", String(isActive));
+      }
+
+      // containers
+      for (const k of Object.keys(containers)) {
+        containers[k].classList.toggle("active", k === key);
       }
     }
 
-    async function renderPage(pdfDoc, num) {
-      const page = await pdfDoc.getPage(num);
-
-      // Scale 1.5 gives good quality. If it lags, set to 1.0
-      const viewport = page.getViewport({ scale: 1.5 });
-
-      const canvas = document.createElement("canvas");
-      const ctx = canvas.getContext("2d");
-
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
-
-      container.appendChild(canvas);
-
-      await page.render({
-        canvasContext: ctx,
-        viewport: viewport,
-      }).promise;
+    function clearContainer(el) {
+      // remove canvases
+      while (el.firstChild) el.removeChild(el.firstChild);
     }
 
-    loadFullPdf();
+    async function getPdfDoc(key) {
+      if (pdfCache.has(key)) return pdfCache.get(key);
+
+      const loadingTask = pdfjsLib.getDocument(PDFS[key]);
+      const pdfDoc = await loadingTask.promise;
+      pdfCache.set(key, pdfDoc);
+      return pdfDoc;
+    }
+
+    async function renderAllPages(pdfDoc, containerEl, token) {
+      const numPages = pdfDoc.numPages;
+
+      for (let i = 1; i <= numPages; i++) {
+        // cancel if user switched tab mid-render
+        if (token !== renderToken) return;
+
+        setStatus(`Rendering page ${i}/${numPages}…`);
+        const page = await pdfDoc.getPage(i);
+
+        // Scale 1.5: quality. Set to 1.0 if slow.
+        const viewport = page.getViewport({ scale: 1.5 });
+
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d", { alpha: false });
+
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+
+        containerEl.appendChild(canvas);
+
+        await page.render({ canvasContext: ctx, viewport }).promise;
+      }
+
+      if (token === renderToken) {
+        setStatus(`Done (${numPages} pages)`);
+        setTimeout(() => {
+          // hide status only if still same token (still same view)
+          if (token === renderToken) setStatus("");
+        }, 1200);
+      }
+    }
+
+    async function showPdf(key) {
+      setActiveTab(key);
+
+      const token = ++renderToken;
+      const containerEl = containers[key];
+
+      // Always clear before rendering to avoid duplicates
+      clearContainer(containerEl);
+
+      try {
+        setStatus("Loading PDF…");
+        const pdfDoc = await getPdfDoc(key);
+
+        // if switched while loading
+        if (token !== renderToken) return;
+
+        setStatus(`Total pages: ${pdfDoc.numPages}`);
+        await renderAllPages(pdfDoc, containerEl, token);
+      } catch (err) {
+        console.error(err);
+        if (token !== renderToken) return;
+        setStatus("Load error: " + (err?.message || String(err)));
+      }
+    }
+
+    // Tab handlers
+    tabs.drinks.addEventListener("click", () => showPdf("drinks"));
+    tabs.kitchen.addEventListener("click", () => showPdf("kitchen"));
+
+    // Initial load
+    showPdf("drinks");
   </script>
 
 </body>
