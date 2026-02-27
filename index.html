@@ -1,4 +1,276 @@
 <!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Меню — PDF Viewer</title>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf_viewer.min.css">
+
+  <style>
+    :root{
+      --bg0:#070A12;
+      --bg1:#0B0F17;
+      --card: rgba(255,255,255,.06);
+      --line: rgba(255,255,255,.10);
+      --text: rgba(255,255,255,.92);
+      --muted: rgba(255,255,255,.65);
+      --shadow: 0 18px 55px rgba(0,0,0,.55);
+      --accentA: #7c3aed;
+      --accentB: #22d3ee;
+      --r: 18px;
+    }
+
+    *{ box-sizing:border-box; }
+    html,body{ height:100%; margin:0; }
+
+    body{
+      color:var(--text);
+      font-family: system-ui, -apple-system, sans-serif;
+      background: linear-gradient(180deg, var(--bg0), var(--bg1));
+      background-attachment: fixed;
+    }
+
+    /* Сетка на фоне */
+    body::before{
+      content:""; position:fixed; inset:0; pointer-events:none; opacity:.12;
+      background-image: linear-gradient(to right, #fff 1px, transparent 1px), linear-gradient(to bottom, #fff 1px, transparent 1px);
+      background-size: 48px 48px;
+      mask-image: radial-gradient(circle at 50% 20%, black, transparent 80%);
+    }
+
+    .wrap{ width: min(1100px, calc(100% - 24px)); margin: 18px auto 34px; position: relative; z-index: 1; }
+
+    .topbar{
+      position: sticky; top: 10px; z-index: 100;
+      display:flex; align-items:center; justify-content:space-between; gap:14px;
+      padding: 10px 14px; border: 1px solid var(--line); border-radius: var(--r);
+      background: rgba(10,14,24,.75); backdrop-filter: blur(12px); box-shadow: var(--shadow);
+    }
+
+    .brand h1{ margin:0; font-size: 14px; font-weight: 700; }
+    .brand p{ margin:2px 0 0; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+
+    .tabs{ display:flex; gap:6px; padding:4px; border-radius: 99px; background: rgba(255,255,255,.05); }
+
+    .tab-btn{
+      border:0; cursor:pointer; color: var(--text); background: transparent;
+      padding: 8px 16px; border-radius: 99px; font-size: 13px; font-weight: 600;
+      transition: all .2s ease; display:flex; align-items:center; gap:8px;
+    }
+    .tab-btn.active{ background: var(--accentA); box-shadow: 0 4px 12px rgba(124,58,237,0.3); }
+
+    .pill{ font-size: 10px; padding: 2px 7px; border-radius: 8px; background: rgba(0,0,0,0.3); border: 1px solid var(--line); }
+
+    .controls{ display:flex; gap:6px; }
+    .icon-btn{
+      width:36px; height:36px; border-radius: 50%; border: 1px solid var(--line);
+      background: var(--card); color: #fff; cursor:pointer; font-size: 18px;
+      transition: all 0.2s;
+    }
+    .icon-btn:hover{ background: var(--accentB); color: #000; }
+
+    /* Viewer Area */
+    .viewer{ margin-top: 20px; }
+    .pdf-container{ display:none; flex-direction:column; gap: 24px; align-items:center; }
+    .pdf-container.active{ display:flex; }
+
+    /* Контейнер страницы */
+    .page-card{
+      position: relative;
+      background: white;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      line-height: 0;
+    }
+    
+    /* Слой текста (чтобы можно было выделять) */
+    .textLayer { opacity: 0.2; } /* Можно сделать 0, если выделение не нужно */
+
+    canvas { max-width: 100%; height: auto !important; }
+
+    .status-msg { position: fixed; bottom: 20px; right: 20px; font-size: 12px; color: var(--muted); background: rgba(0,0,0,0.5); padding: 5px 12px; border-radius: 20px; }
+
+    @media (max-width: 600px){
+      .brand { display: none; }
+      .topbar { flex-direction: column; gap: 10px; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <header class="topbar">
+      <div class="brand">
+        <h1>RESTAURANT MENU</h1>
+        <p id="current-file">Select Category</p>
+      </div>
+
+      <nav class="tabs">
+        <button id="tab-drinks" class="tab-btn active" onclick="switchTab('drinks')">
+          Напитки <span class="pill" id="pill-drinks">...</span>
+        </button>
+        <button id="tab-kitchen" class="tab-btn" onclick="switchTab('kitchen')">
+          Кухня <span class="pill" id="pill-kitchen">...</span>
+        </button>
+      </nav>
+
+      <div class="controls">
+        <button class="icon-btn" onclick="changeZoom(-0.2)">−</button>
+        <button class="icon-btn" onclick="resetZoom()">⟷</button>
+        <button class="icon-btn" onclick="changeZoom(0.2)">+</button>
+      </div>
+    </header>
+
+    <main class="viewer">
+      <div id="pdf-drinks" class="pdf-container active"></div>
+      <div id="pdf-kitchen" class="pdf-container"></div>
+    </main>
+  </div>
+
+  <div id="status" class="status-msg">Ready</div>
+
+  <script>
+    const pdfjsLib = window["pdfjs-dist/build/pdf"];
+    pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+    const CONFIG = {
+      drinks: "done.pdf",
+      kitchen: "KITCHEN.pdf"
+    };
+
+    let state = {
+      activeKey: 'drinks',
+      zoom: 1.0,
+      fitWidth: true,
+      pdfDocs: {},
+      observers: {}
+    };
+
+    // Инициализация
+    async function init() {
+      await loadPdf('drinks');
+      // Фоновая загрузка кухни через секунду, чтобы не тормозить первый рендер
+      setTimeout(() => loadPdf('kitchen'), 1000);
+    }
+
+    async function loadPdf(key) {
+      const statusEl = document.getElementById('status');
+      try {
+        statusEl.textContent = `Loading ${key}...`;
+        const loadingTask = pdfjsLib.getDocument(CONFIG[key]);
+        const pdf = await loadingTask.promise;
+        state.pdfDocs[key] = pdf;
+        document.getElementById(`pill-${key}`).textContent = pdf.numPages + 'p';
+        
+        renderPlaceholders(key);
+        statusEl.textContent = 'Loaded';
+      } catch (e) {
+        console.error(e);
+        statusEl.textContent = 'Error loading PDF';
+      }
+    }
+
+    function renderPlaceholders(key) {
+      const container = document.getElementById(`pdf-${key}`);
+      const pdf = state.pdfDocs[key];
+      container.innerHTML = ''; // Очистка
+
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const card = document.createElement('div');
+        card.className = 'page-card';
+        card.id = `page-${key}-${i}`;
+        // Временная высота, чтобы скролл работал до рендера
+        card.style.minHeight = '500px'; 
+        card.style.width = '100%';
+        card.style.maxWidth = '900px';
+        card.style.marginBottom = '20px';
+        
+        container.appendChild(card);
+        setupObserver(card, key, i);
+      }
+    }
+
+    function setupObserver(el, key, pageNum) {
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            renderPage(key, pageNum);
+            observer.unobserve(el); // Рендерим только один раз
+          }
+        });
+      }, { rootMargin: '500px' });
+      observer.observe(el);
+    }
+
+    async function renderPage(key, pageNum) {
+      const pdf = state.pdfDocs[key];
+      const page = await pdf.getPage(pageNum);
+      const container = document.getElementById(`page-${key}-${pageNum}`);
+      
+      const viewport = page.getViewport({ scale: 1 });
+      const containerWidth = container.clientWidth;
+      const scale = state.fitWidth ? (containerWidth / viewport.width) : state.zoom;
+      const scaledViewport = page.getViewport({ scale: scale * window.devicePixelRatio });
+
+      // Создаем Canvas
+      const canvas = document.createElement('canvas');
+      const context = canvas.getContext('2d');
+      canvas.width = scaledViewport.width;
+      canvas.height = scaledViewport.height;
+      canvas.style.width = "100%";
+      canvas.style.height = "auto";
+
+      container.style.minHeight = 'auto';
+      container.innerHTML = '';
+      container.appendChild(canvas);
+
+      await page.render({
+        canvasContext: context,
+        viewport: scaledViewport
+      }).promise;
+    }
+
+    function switchTab(key) {
+      state.activeKey = key;
+      
+      // UI кнопки
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById(`tab-${key}`).classList.add('active');
+
+      // Контейнеры
+      document.querySelectorAll('.pdf-container').forEach(c => c.classList.remove('active'));
+      document.getElementById(`pdf-${key}`).classList.add('active');
+      
+      document.getElementById('current-file').textContent = CONFIG[key];
+    }
+
+    function changeZoom(delta) {
+      state.fitWidth = false;
+      state.zoom = Math.max(0.5, Math.min(3, state.zoom + delta));
+      renderPlaceholders(state.activeKey);
+    }
+
+    function resetZoom() {
+      state.fitWidth = true;
+      renderPlaceholders(state.activeKey);
+    }
+
+    // Слушатель изменения размера окна
+    let resizeTimeout;
+    window.addEventListener('resize', () => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(() => {
+        if (state.fitWidth) renderPlaceholders(state.activeKey);
+      }, 300);
+    });
+
+    init();
+  </script>
+</body>
+</html><!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
